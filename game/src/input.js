@@ -1,129 +1,109 @@
-// Keyboard and mouse input for Soluna Bay. Keys are tracked by code so the
-// layout does not matter; mouse movement steers the camera (pointer lock when
-// the player clicks the canvas) and clicks fire weapons.
-export const ACTION_CONFIRM = 1;
-export const ACTION_PAUSE = 2;
-export const ACTION_MAP = 4;
-export const ACTION_ENTER_CAR = 8;
-export const ACTION_STEAL = 16;
-export const ACTION_RELOAD = 32;
-export const ACTION_RADIO = 64;
-export const ACTION_WEAPON_NEXT = 128;
-export const ACTION_HANDBRAKE = 256;
-export const ACTION_MISSION = 512;
+// SOLUNA BAY — keyboard and mouse. Actions are buffered one-shots: a quick
+// tap is never missed, and a held key never fires twice.
+export const ACTION = {
+  MISSION: 1 << 0, // J — start / advance mission
+  ENTER: 1 << 1, // E — enter/exit car, interact
+  PAUSE: 1 << 2, // Escape / P — pause or map
+  MAP: 1 << 3, // M — map overlay
+  SHOOT: 1 << 4, // mouse click or F — fire weapon
+  RELOAD: 1 << 5, // R — reload / cycle radio (with Shift)
+  HORN: 1 << 6, // H — horn
+  SAVE: 1 << 7, // F5 is browser-reserved; use Q to quick-save at a save point
+  NITRO: 1 << 8, // Shift — nitro (held, not buffered)
+  INTERACT: 1 << 9, // E is also the interact key; kept separate for clarity
+  RADIO: 1 << 10, // T — next radio station
+  ANY: 1 << 11, // any key at all (buffered, so a quick tap is never missed)
+};
 
-export function createInput(canvas) {
-  const keys = new Set();
-  const pressed = new Set();
-  let mouseDX = 0;
-  let mouseDY = 0;
-  let mouseDown = false;
-  let mouseClicked = false;
-  let locked = false;
+const KEY_ACTIONS = {
+  KeyJ: ACTION.MISSION,
+  KeyE: ACTION.ENTER,
+  Escape: ACTION.PAUSE,
+  KeyP: ACTION.PAUSE,
+  KeyM: ACTION.MAP,
+  KeyF: ACTION.SHOOT,
+  KeyR: ACTION.RELOAD,
+  KeyH: ACTION.HORN,
+  KeyQ: ACTION.SAVE,
+  KeyT: ACTION.RADIO,
+};
 
-  function codeOf(event) {
-    return event.code;
+export class Input {
+  constructor() {
+    this.down = new Set();
+    this.pressed = 0; // buffered actions, consumed by takeActions()
+    this.mouseX = 0;
+    this.mouseY = 0;
+    this.mouseDown = false;
+    this.mouseClicked = false;
+    this.dragDX = 0;
+    this.dragDY = 0;
+    this._dragging = false;
+    this._lastX = 0;
+    this._lastY = 0;
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      this.down.add(e.code);
+      this.pressed |= ACTION.ANY;
+      const a = KEY_ACTIONS[e.code];
+      if (a !== undefined) this.pressed |= a;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+    });
+    window.addEventListener('keyup', (e) => this.down.delete(e.code));
+    window.addEventListener('blur', () => this.down.clear());
+    window.addEventListener('mousedown', (e) => {
+      this.mouseDown = true;
+      this.mouseClicked = true;
+      this._dragging = true;
+      this._lastX = e.clientX;
+      this._lastY = e.clientY;
+    });
+    window.addEventListener('mouseup', () => {
+      this.mouseDown = false;
+      this._dragging = false;
+    });
+    window.addEventListener('mousemove', (e) => {
+      this.mouseX = e.clientX;
+      this.mouseY = e.clientY;
+      if (this._dragging) {
+        this.dragDX += e.clientX - this._lastX;
+        this.dragDY += e.clientY - this._lastY;
+        this._lastX = e.clientX;
+        this._lastY = e.clientY;
+      }
+    });
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
   }
-
-  window.addEventListener('keydown', (event) => {
-    if (event.repeat) return;
-    keys.add(codeOf(event));
-    pressed.add(codeOf(event));
-    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(event.code)) {
-      event.preventDefault();
+  isDown(code) {
+    return this.down.has(code);
+  }
+  // Drive axes: -1..1, from WASD or arrows.
+  axes() {
+    let x = 0;
+    let y = 0;
+    if (this.isDown('KeyA') || this.isDown('ArrowLeft')) x -= 1;
+    if (this.isDown('KeyD') || this.isDown('ArrowRight')) x += 1;
+    if (this.isDown('KeyW') || this.isDown('ArrowUp')) y += 1;
+    if (this.isDown('KeyS') || this.isDown('ArrowDown')) y -= 1;
+    return { x, y };
+  }
+  takeActions() {
+    const a = this.pressed | (this.mouseClicked ? ACTION.SHOOT : 0);
+    this.pressed = 0;
+    this.mouseClicked = false;
+    return a;
+  }
+  takeDrag() {
+    const d = { x: this.dragDX, y: this.dragDY };
+    this.dragDX = 0;
+    this.dragDY = 0;
+    return d;
+  }
+  // Number keys 1-4 select a weapon slot.
+  weaponSlot() {
+    for (let i = 1; i <= 4; i += 1) {
+      if (this.isDown(`Digit${i}`)) return i - 1;
     }
-  });
-  window.addEventListener('keyup', (event) => {
-    keys.delete(codeOf(event));
-  });
-  window.addEventListener('blur', () => {
-    keys.clear();
-  });
-  document.addEventListener('mousemove', (event) => {
-    if (locked) {
-      mouseDX += event.movementX || 0;
-      mouseDY += event.movementY || 0;
-    }
-  });
-  document.addEventListener('pointerlockchange', () => {
-    locked = document.pointerLockElement === canvas;
-  });
-  canvas.addEventListener('mousedown', (event) => {
-    if (event.button === 0) {
-      mouseDown = true;
-      mouseClicked = true;
-      if (!locked && document.pointerLockElement !== canvas) {
-        try {
-          canvas.requestPointerLock();
-        } catch {
-          // Pointer lock is a nicety; the game plays without it.
-        }
-      }
-    }
-  });
-  window.addEventListener('mouseup', (event) => {
-    if (event.button === 0) mouseDown = false;
-  });
-
-  const KEY_ACTIONS = {
-    Enter: ACTION_CONFIRM,
-    Space: ACTION_CONFIRM,
-    Escape: ACTION_PAUSE,
-    KeyM: ACTION_MAP,
-    KeyE: ACTION_ENTER_CAR,
-    KeyF: ACTION_STEAL,
-    KeyR: ACTION_RELOAD,
-    KeyQ: ACTION_RADIO,
-    KeyC: ACTION_WEAPON_NEXT,
-    KeyJ: ACTION_MISSION,
-  };
-
-  return {
-    /** Held movement keys as {forward, back, left, right, run}. */
-    move() {
-      return {
-        forward: keys.has('KeyW') || keys.has('ArrowUp'),
-        back: keys.has('KeyS') || keys.has('ArrowDown'),
-        left: keys.has('KeyA') || keys.has('ArrowLeft'),
-        right: keys.has('KeyD') || keys.has('ArrowRight'),
-        run: keys.has('ShiftLeft') || keys.has('ShiftRight'),
-        brake: keys.has('Space'),
-      };
-    },
-    /** One-shot actions pressed since the last call (consumed). */
-    takeActions() {
-      let actions = 0;
-      for (const code of pressed) {
-        const flag = KEY_ACTIONS[code];
-        if (flag) actions |= flag;
-      }
-      pressed.clear();
-      return actions;
-    },
-    /** Mouse look delta since the last call (consumed). */
-    takeMouse() {
-      const dx = mouseDX;
-      const dy = mouseDY;
-      mouseDX = 0;
-      mouseDY = 0;
-      return { dx, dy };
-    },
-    firing() {
-      return mouseDown;
-    },
-    takeClick() {
-      const clicked = mouseClicked;
-      mouseClicked = false;
-      return clicked;
-    },
-    isDown(code) {
-      return keys.has(code);
-    },
-    anyKey() {
-      return pressed.size > 0;
-    },
-    clearPressed() {
-      pressed.clear();
-    },
-  };
+    return -1;
+  }
 }
