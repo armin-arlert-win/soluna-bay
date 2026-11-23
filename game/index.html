@@ -1,15 +1,91 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Soluna Bay — a sun-soaked open-world crime game</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <canvas id="game" width="1280" height="720"></canvas>
-    <div id="root"></div>
-    <div id="status">Loading Soluna Bay…</div>
-    <script type="module" src="src/main.js"></script>
-  </body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOLUNA BAY — an open-world crime game</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<canvas id="game" aria-label="Soluna Bay: drive, run jobs, and stay ahead of the SBPD"></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div id="hud">
+  <div id="topleft">
+    <div class="bar"><div id="health-fill"></div><span>HEALTH</span></div>
+    <div class="bar armour"><div id="armour-fill"></div><span>ARMOUR</span></div>
+    <div id="car-hp" style="display:none"><div id="car-hp-fill"></div><span>CAR</span></div>
+    <div id="wanted" aria-label="wanted level">☆☆☆☆☆</div>
+  </div>
+  <div id="topright">
+    <div id="money">$250</div>
+    <div id="clock">Day 1 08:00</div>
+    <div id="district">Downtown</div>
+    <div id="rank">Nobody</div>
+  </div>
+  <div id="mission-box">
+    <div id="mission-title">Next job</div>
+    <div id="mission-objective"></div>
+  </div>
+  <canvas id="minimap" width="180" height="180" aria-label="minimap"></canvas>
+  <div id="weapons"></div>
+  <div id="speed"></div>
+  <div id="radio"></div>
+  <div id="passenger"></div>
+  <div id="crosshair">+</div>
+  <div id="subtitle"></div>
+  <div id="banner"></div>
+  <div id="messages"></div>
+  <div id="prompt"></div>
+</div>
+
+<div id="title" class="overlay">
+  <div class="panel">
+    <h1>SOLUNA BAY</h1>
+    <p class="tag">Sun. Sand. Everybody owes somebody.</p>
+    <p>An open-world crime game. Drive the Bay, run jobs for the crew,<br>
+    stay ahead of the SBPD — and do not get caught.</p>
+    <p class="keys">WASD drive &amp; walk · E enter car / interact · J start a job<br>
+    1–4 weapons · F fire · R reload · M map · Esc pause · T radio</p>
+    <p class="go">Press Enter or click to start a new game</p>
+    <div id="title-slots"></div>
+    <p class="slots-hint">Press 1, 2 or 3 to continue a save slot.</p>
+  </div>
+</div>
+
+<div id="pause" class="overlay" style="display:none">
+  <div class="panel">
+    <h2>Paused</h2>
+    <p id="pause-stats"></p>
+    <p class="keys">Esc resume · Q save at a property · X quit to title</p>
+  </div>
+</div>
+
+<div id="map-overlay" class="overlay" style="display:none">
+  <div class="panel map-panel">
+    <h2>Map of Soluna Bay</h2>
+    <canvas id="bigmap" width="560" height="560"></canvas>
+    <p class="keys">M or Esc to close</p>
+  </div>
+</div>
+
+<div id="garage-menu" class="overlay" style="display:none">
+  <div class="panel">
+    <h2>Calder Auto Works</h2>
+    <p>Nia Calder can make this car meaner. Pick a number:</p>
+    <div id="garage-list"></div>
+    <p class="keys">1–5 buy · Esc or E to leave</p>
+  </div>
+</div>
+
+<div id="save-menu" class="overlay" style="display:none">
+  <div class="panel">
+    <h2>Save game</h2>
+    <p>Pick a slot:</p>
+    <p class="keys">1 — Slot 1 · 2 — Slot 2 · 3 — Slot 3 · Esc cancel</p>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
 </html>
