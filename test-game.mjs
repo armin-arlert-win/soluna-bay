@@ -1,136 +1,133 @@
-// Smoke test + screenshot capture for Soluna Bay.
-// Serves game/ on localhost, loads it in real Chromium, checks for console
-// errors, drives the game a little, then captures the 4 staged shots.
-// Rebuilt under the gta6-01 recording: same checks, re-written from the
-// reference build.
-// Usage: node test-game.mjs [--shots-only]
+// SOLUNA BAY — local Playwright checks. Serves the repo, loads the game,
+// and exercises the controls. Run: node test-game.mjs
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
-import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
 const require = createRequire('/home/hatch/workspace/makefun/.shot/package.json');
 const { chromium } = require('playwright');
 
 const here = dirname(fileURLToPath(import.meta.url));
-const PORT = 8081;
-const BASE = `http://localhost:${PORT}/`;
-const shotsOnly = process.argv.includes('--shots-only');
+const BASE = 'http://localhost:8080';
 
-const server = spawn('node', ['serve.ts', '--port', String(PORT)], { cwd: here, stdio: 'ignore' });
-await new Promise((r) => setTimeout(r, 1200));
-
-let failures = 0;
-function check(name, ok, detail = '') {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`);
-  if (!ok) failures += 1;
+let pass = 0;
+let fail = 0;
+function check(name, ok, extra = '') {
+  if (ok) {
+    pass += 1;
+    console.log(`  PASS ${name}`);
+  } else {
+    fail += 1;
+    console.log(`  FAIL ${name} ${extra}`);
+  }
 }
 
-const browser = await chromium.launch();
+const server = spawn('node', ['serve.ts'], { cwd: here, stdio: 'ignore' });
+await new Promise((r) => setTimeout(r, 1200));
+
+const browser = await chromium.launch({
+  args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'],
+});
+// A smaller viewport for the interaction tests keeps software rendering fast
+// enough that the fixed-step simulation keeps up with real time.
+const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+const errors = [];
+page.on('console', (m) => {
+  if (m.type() === 'error') errors.push(m.text());
+});
+page.on('pageerror', (e) => errors.push(String(e)));
+
 try {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-  const page = await context.newPage();
-  const errors = [];
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+  // 1. The title screen loads over a living city.
+  await page.goto(`${BASE}/game/index.html`, { waitUntil: 'load' });
+  await page.waitForTimeout(2500);
+  check('page loads without console errors', errors.length === 0, errors.slice(0, 2).join(' | '));
+  check('title overlay is visible', await page.isVisible('#title'));
+  check('game object exists', await page.evaluate(() => !!window.__soluna));
+  check('WebGL canvas has size', await page.evaluate(() => {
+    const c = document.getElementById('game');
+    return c.width > 0 && c.height > 0;
+  }));
 
-  if (!shotsOnly) {
-    await page.goto(BASE, { waitUntil: 'load', timeout: 20000 });
-    await page.waitForTimeout(5000);
-    check('no console errors on load', errors.length === 0, errors.join(' | ').slice(0, 500));
-    const status = await page.evaluate(() => document.getElementById('status').textContent);
-    check('status line set', /Soluna Bay/.test(status), status);
-    const hud = await page.evaluate(() => !!document.querySelector('.hud'));
-    check('HUD present', hud);
-    const screen0 = await page.evaluate(() => window.__screen);
-    check('starts on title screen', screen0 === 'title', screen0);
-    await page.screenshot({ path: '/tmp/smoke-title.png' });
+  // 2. Start the game and walk.
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(1200);
+  check('title hides after Enter', await page.evaluate(() => document.getElementById('title').style.display === 'none'));
+  const startPos = await page.evaluate(() => ({ x: window.__soluna.world.player.x, z: window.__soluna.world.player.z }));
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(3500);
+  await page.keyboard.up('KeyW');
+  const endPos = await page.evaluate(() => ({ x: window.__soluna.world.player.x, z: window.__soluna.world.player.z }));
+  const walked = Math.hypot(endPos.x - startPos.x, endPos.z - startPos.z);
+  check('WASD walks the player', walked > 4, `moved ${walked.toFixed(1)} m`);
+  check('HUD shows money', (await page.textContent('#money')).includes('$'));
 
-    // New Game via Enter.
-    await page.keyboard.press('Enter');
-    await page.waitForTimeout(800);
-    const screen1 = await page.evaluate(() => window.__screen);
-    check('Enter starts play', screen1 === 'play', screen1);
-    const pos0 = await page.evaluate(() => ({ x: window.__game.playerApi.player.x, z: window.__game.playerApi.player.z }));
-    // Walk forward for 2s.
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(2000);
-    await page.keyboard.up('KeyW');
-    const pos1 = await page.evaluate(() => ({ x: window.__game.playerApi.player.x, z: window.__game.playerApi.player.z }));
-    const moved = Math.hypot(pos1.x - pos0.x, pos1.z - pos0.z);
-    check('WASD walks the player', moved > 3, `moved ${moved.toFixed(1)}m`);
-    await page.screenshot({ path: '/tmp/smoke-play.png' });
+  // 3. Pause and map.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(900);
+  check('Esc opens pause', await page.isVisible('#pause'));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(900);
+  check('Esc resumes', await page.evaluate(() => document.getElementById('pause').style.display === 'none'));
+  await page.keyboard.press('KeyM');
+  await page.waitForTimeout(900);
+  check('M opens the map', await page.isVisible('#map-overlay'));
+  await page.keyboard.press('KeyM');
+  await page.waitForTimeout(900);
 
-    // Pause and map.
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(400);
-    const screen2 = await page.evaluate(() => window.__screen);
-    check('Esc opens pause/map', screen2 === 'pause', screen2);
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
+  // 4. Start a mission with J.
+  await page.keyboard.press('KeyJ');
+  await page.waitForTimeout(900);
+  check('J starts mission 1', await page.evaluate(() => {
+    const m = window.__soluna.world.mission.active;
+    return !!m && m.def.id === 'm1';
+  }));
+  check('mission tracker shows the objective', (await page.textContent('#mission-objective')).length > 3);
 
-    // Mission start with J.
-    await page.keyboard.press('KeyJ');
-    await page.waitForTimeout(500);
-    const mission = await page.evaluate(() => !!window.__game.missionsApi.state.active);
-    check('J starts a mission', mission);
-    await page.screenshot({ path: '/tmp/smoke-mission.png' });
+  // 5. Enter a car and drive it.
+  await page.evaluate(() => {
+    const w = window.__soluna.world;
+    const car = w.cars.find((c) => !c.parked && c.kind === 'traffic');
+    w.player.x = car.x + 2;
+    w.player.z = car.z;
+  });
+  await page.keyboard.press('KeyE');
+  await page.waitForTimeout(900);
+  check('E enters a car', await page.evaluate(() => !window.__soluna.world.player.onFoot));
+  const carStart = await page.evaluate(() => ({ x: window.__soluna.world.player.x, z: window.__soluna.world.player.z }));
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(4000);
+  const speed = await page.evaluate(() => Math.abs(window.__soluna.world.player.car?.speed || 0));
+  await page.keyboard.up('KeyW');
+  const carEnd = await page.evaluate(() => ({ x: window.__soluna.world.player.x, z: window.__soluna.world.player.z }));
+  const drove = Math.hypot(carEnd.x - carStart.x, carEnd.z - carStart.z);
+  check('car drives', drove > 15 && speed > 3, `drove ${drove.toFixed(1)} m at ${speed.toFixed(1)} m/s`);
 
-    // Enter a car: teleport the player next to the parked car at the marina
-    // start, then press E.
-    await page.evaluate(() => {
-      const g = window.__game;
-      const p = g.playerApi.player;
-      const car = g.worldApi.world.cars.find((c) => c.kind === 'parked' && !c.dead);
-      if (car) { p.x = car.x + 2; p.z = car.z; }
-    });
-    await page.keyboard.press('KeyE');
-    await page.waitForTimeout(500);
-    const inCar = await page.evaluate(() => !!window.__game.playerApi.player.car);
-    check('E enters a car', inCar);
-    // Drive forward for 3s.
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(3000);
-    await page.keyboard.up('KeyW');
-    const speed = await page.evaluate(() => window.__game.playerApi.player.car ? Math.abs(window.__game.playerApi.player.car.speed) : 0);
-    check('car drives', speed > 3, `speed ${speed.toFixed(1)} m/s`);
-    await page.screenshot({ path: '/tmp/smoke-drive.png' });
-    check('no console errors during play', errors.length === 0, errors.join(' | ').slice(0, 500));
-    await context.close();
+  // 6. Wanted level: jacking a car should have raised the heat.
+  check('carjacking raised wanted', await page.evaluate(() => window.__soluna.world.player.wanted >= 1));
+
+  // 7. Each shot scene renders without errors.
+  for (const shot of ['chase', 'mission', 'night', 'map']) {
+    await page.goto(`${BASE}/game/index.html?shot=${shot}&seed=1`, { waitUntil: 'load' });
+    await page.waitForTimeout(1500);
+    const shot2 = await page.screenshot({ type: 'jpeg', quality: 70 });
+    check(`shot ${shot} renders (not blank)`, shot2.length > 20000, `${shot2.length} bytes`);
   }
+  check('no console errors across all shots', errors.length === 0, errors.slice(0, 3).join(' | '));
 
-  // ---- Staged screenshots ----
-  const shots = [
-    { name: '1-chase.jpg', query: '?shot=chase&seed=1' },
-    { name: '2-mission.jpg', query: '?shot=mission&seed=1' },
-    { name: '3-night.jpg', query: '?shot=night&seed=1' },
-    { name: '4-map.jpg', query: '?shot=map&seed=1' },
-  ];
-  mkdirSync(join(here, 'screenshots'), { recursive: true });
-  for (const s of shots) {
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-    const p = await ctx.newPage();
-    const errs = [];
-    p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
-    p.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`));
-    await p.goto(BASE + s.query, { waitUntil: 'load', timeout: 20000 });
-    try {
-      await p.waitForFunction(() => window.__shotReady === true, null, { timeout: 30000 });
-    } catch {
-      errs.push('shot never became ready');
-    }
-    await p.waitForTimeout(400);
-    const path = join(here, 'screenshots', s.name);
-    await p.screenshot({ path, type: 'jpeg', quality: 85 });
-    const { size } = await import('node:fs').then((fs) => fs.statSync(path));
-    check(`shot ${s.name}`, errs.length === 0 && size <= 262144, `${Math.round(size / 1024)} KiB${errs.length ? ' | ' + errs.join(' | ').slice(0, 300) : ''}`);
-    await ctx.close();
-  }
+  // 8. The world is alive: traffic moves.
+  await page.goto(`${BASE}/game/index.html`, { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  const t0 = await page.evaluate(() => window.__soluna.world.cars.filter((c) => !c.parked).map((c) => [c.x, c.z]));
+  await page.waitForTimeout(1500);
+  const t1 = await page.evaluate(() => window.__soluna.world.cars.filter((c) => !c.parked).map((c) => [c.x, c.z]));
+  const moved = t0.reduce((n, c, i) => n + (Math.hypot(t1[i][0] - c[0], t1[i][1] - c[1]) > 1 ? 1 : 0), 0);
+  check('traffic drives itself', moved >= 5, `${moved} cars moved`);
 } finally {
   await browser.close();
   server.kill();
 }
 
-console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);
-process.exit(failures === 0 ? 0 : 1);
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail === 0 ? 0 : 1);
