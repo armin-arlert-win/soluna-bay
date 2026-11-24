@@ -154,7 +154,7 @@ export class Hud {
     ctx.fillStyle = '#dcc78f';
     ctx.fillRect(px(-280), 0, px(-220) - px(-280), S);
     // Roads.
-    ctx.strokeStyle = '#3a3f46';
+    ctx.strokeStyle = '#6a7076';
     ctx.lineWidth = Math.max(2, 4 * scale);
     for (const c of [-200, -160, -120, -80, -40, 0, 40, 80, 120, 160, 200]) {
       ctx.beginPath();
@@ -202,6 +202,14 @@ export class Hud {
     // Police.
     for (const car of world.cars) {
       if (car.kind === 'police' && !car.parked) dot(car.x, car.z, 3, '#4a9fd8');
+    }
+    // Traffic on the roads and people on the streets: the map should show
+    // the city alive, not just the police and the player.
+    for (const car of world.cars) {
+      if (car.kind !== 'police' && !car.parked) dot(car.x, car.z, 2.2, '#f0f0f0');
+    }
+    for (const ped of world.peds) {
+      if (ped.state !== 'dead') dot(ped.x, ped.z, 1.2, '#ff9a5c');
     }
     if (world.heli.active) dot(world.heli.x, world.heli.z, 4, '#ff5c5c');
     // Player arrow.

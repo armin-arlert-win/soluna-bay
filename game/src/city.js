@@ -3,7 +3,7 @@
 import { GRID, PITCH, BLOCK, HALF, ROAD_CENTERS, COLLECTIBLE_COUNT, PALETTE } from './config.js';
 import { makeRng, noise2 } from './rng.js';
 
-const BUILDING_COLORS = [0x8a6f5c, 0x7a6a8a, 0x9a8a7a, 0x6a7a8a, 0xb08a5a, 0x5c6a5a, 0xa88a8a, 0x7a7a7a];
+const BUILDING_COLORS = [0x8a6f5c, 0x7a6a8a, 0x9a8a7a, 0x6a7a8a, 0xb08a5a, 0x5c6a5a, 0xa88a8a, 0x7a7a7a, 0x2e8a8a, 0xd86a8a, 0xe08a2e, 0x4a9a5a, 0x7a5ac2, 0xc2a52e, 0x3a7ab8, 0xb85a3a];
 
 function blockCenter(index) {
   return ROAD_CENTERS[index] + PITCH / 2;
