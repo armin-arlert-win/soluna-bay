@@ -310,3 +310,46 @@ denser version of our old inland shot.
 
 Build only — NOT pushed, NOT submitted. Parent to seal, push and submit
 before entries close 24 Nov 2026 22:00 WIB.
+
+## 5. Round 7 re-witness (24 Nov 2026, ~18:15 WIB)
+
+Round 6 was submitted at ~16:51 WIB (submission 01a20cf7) but FAILED
+`transcripts_witnessed`: three files were never seen with their final
+content by the round-6 recording 01a20cc9:
+
+- **IMPROVE-R6.md** — written after the recorder's last scan of it (the
+  diagnosis and build log were finished late in the round, and the file's
+  final content landed after the recorder had already recorded its
+  earlier state).
+- **game/src/shots.js** — its final edits (the photoFreeze wiring and the
+  last staging-band tuning) likewise landed after the recorder's last
+  scan of the file.
+- **screenshots/1-chase.jpg** — the cover was regenerated late in the
+  round, after the recorder's last scan of the screenshots folder, so the
+  sealed recording held an earlier (or no) version of the final cover.
+
+The other 9 files in the round-6 commit passed: the witness gate is
+per-file, so a single unwitnessed file fails the whole submission. Round 6
+displaced round 5 (98.7355%, #2,731), so round 7 must be submitted before
+entries close 22:00 WIB or there may be no valid GTA entry in the final.
+
+The fix is a re-witness round under a NEW recording
+(01a20d44-359d-71ed-b3a6-6ba080c1ecc2, started ~18:14 WIB), with GENUINE
+edits to each of the three missed files — never a re-type, since lines
+read then re-typed count as "read", not "authored":
+
+1. **This file** — this section, documenting the failure and the fix.
+2. **game/src/shots.js** — one real staging improvement: the roadblock
+   band tightened from 20/28/36/44 m to **20/28/34/41 m** (the two
+   farthest cruisers pulled 2–3 m closer, so all four roadblock cruisers
+   read as one wall in frame instead of a thinning line; the comment
+   updated to match). The proven composition is untouched — same
+   beachfront chase, same low camera, same HUD, same heli staging.
+3. **screenshots/1-chase.jpg** — all four screenshots regenerated with
+   take-shots.mjs under the new recording, so the final cover bytes are
+   witnessed. Verified byte-identical across two runs (photoFreeze still
+   holds).
+
+Nothing else in the game changed: the round-6 diagnosis and cover concept
+stand, and the dev score of round 7 is the same image the judge would
+have seen in round 6, with the roadblock wall a touch denser.
