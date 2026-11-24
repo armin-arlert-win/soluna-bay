@@ -13,10 +13,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0e14; fon
 .bar span, #car-hp span { position: absolute; left: 6px; top: 1px; font-size: 10px; letter-spacing: 2px; color: #fff; text-shadow: 0 1px 2px #000; }
 #wanted { font-size: 22px; letter-spacing: 4px; color: #ffd23a; text-shadow: 0 0 8px rgba(0,0,0,.8); }
 #wanted.hot { color: #ff5c5c; animation: pulse 0.8s infinite alternate; }
+/* A staged screenshot holds the pulse: the wanted stars render solid so
+   the frame is byte-identical between runs (a live game still pulses). */
+body.shot #wanted.hot { animation: none; opacity: 1; }
 @keyframes pulse { from { opacity: 1; } to { opacity: .55; } }
 
 #topright { position: absolute; top: 14px; right: 14px; text-align: right; text-shadow: 0 1px 3px #000; }
-#money { font-size: 30px; font-weight: 700; color: #7dff9b; }
+#money { font-size: 40px; font-weight: 700; color: #7dff9b; }
 #clock, #district, #rank { font-size: 14px; color: #e8e8e8; }
 
 #mission-box { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); text-align: center; background: rgba(0,0,0,.45); border-radius: 4px; padding: 6px 16px; max-width: 520px; }
@@ -50,11 +53,12 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0e14; fon
 #weapons { position: absolute; left: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 4px; }
 .wslot { background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.2); border-radius: 3px; padding: 4px 10px; font-size: 13px; color: #cfcfcf; }
 .wslot.active { border-color: #ffd23a; color: #ffd23a; }
-#speed { position: absolute; right: 210px; bottom: 18px; font-size: 26px; font-weight: 700; text-shadow: 0 1px 3px #000; }
-#radio { position: absolute; right: 210px; bottom: 52px; font-size: 13px; color: #7fd4ff; text-shadow: 0 1px 3px #000; }
+#speed { position: absolute; right: 210px; bottom: 18px; font-size: 42px; font-weight: 700; text-shadow: 0 1px 3px #000; }
+#radio { position: absolute; right: 210px; bottom: 74px; font-size: 13px; color: #7fd4ff; text-shadow: 0 1px 3px #000; }
 #passenger { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); font-size: 13px; color: #e8b23a; text-shadow: 0 1px 3px #000; }
 #crosshair { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 26px; color: rgba(255,255,255,.85); text-shadow: 0 0 4px #000; display: none; }
 #subtitle { position: absolute; left: 50%; bottom: 88px; transform: translateX(-50%); max-width: 640px; text-align: center; font-size: 17px; font-style: italic; color: #fff; text-shadow: 0 1px 3px #000, 0 0 8px #000; }
+#subtitle .portrait { display: inline-block; width: 28px; height: 28px; line-height: 28px; border-radius: 6px; font-style: normal; font-weight: 700; font-size: 18px; color: #1a1a1a; text-align: center; margin-right: 8px; vertical-align: middle; }
 #banner { position: absolute; left: 50%; top: 32%; transform: translate(-50%, -50%); font-size: 34px; font-weight: 800; letter-spacing: 2px; color: #ffd23a; text-shadow: 0 2px 6px #000; text-align: center; }
 #messages { position: absolute; left: 14px; bottom: 150px; font-size: 13px; color: #e8e8e8; text-shadow: 0 1px 3px #000; white-space: pre-line; max-width: 420px; }
 #prompt { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); font-size: 15px; color: #fff; background: rgba(0,0,0,.55); padding: 4px 12px; border-radius: 3px; }
