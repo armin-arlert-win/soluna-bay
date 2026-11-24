@@ -2,9 +2,15 @@
 // Each one plays the real rules forward from a fresh world for a fixed
 // number of steps, steered by a simple autopilot, so the frame is what a
 // short game really looks like and the same seed always gives the same frame.
-import { STEP } from './config.js';
+import { STEP, CAR_COLORS } from './config.js';
 import { MISSIONS } from './missions.js';
 import { nearestRoad } from './city.js';
+
+// Staged cars use the bright palette only: the black paint (0x2b2b2b) reads
+// as a black box at dusk and, placed ahead of the player, hid the white
+// roadblock cruisers behind it (round-6 diagnosis: the most prominent car
+// in the cover was a black parked bison, not the police).
+const SHOT_COLORS = CAR_COLORS.filter((c) => c !== 0x2b2b2b);
 
 const SAMPLE = STEP;
 
@@ -55,13 +61,11 @@ function stepWorld(world, pilot, seconds, camYawFn) {
 }
 
 // Street life for the frame: parked cars and pedestrians placed in a band
-// ahead of the player AFTER the world has been stepped, so what is placed
-// here is what the screenshot shows. Parked cars do not move and
-// pedestrians barely move, so they hold the frame during the screenshot
-// wait — while the player coasts ~30 m forward in that wait, which is why
-// the band starts well ahead of the post-step position. Cars are kept
-// within the road (|side| <= 3 m) and pedestrians on the road edge and
-// sidewalk (|side| 3-7 m), so none land inside a building.
+// ahead of the player AFTER the world has been stepped. The world is frozen
+// for the screenshot (world.photoFreeze, set by stageShot), so what is
+// placed here is exactly what the screenshot shows — no coast to allow
+// for. Cars are kept within the road (|side| <= 3 m) and pedestrians on
+// the road edge and sidewalk (|side| 3-7 m), so none land inside a building.
 function addStreetLife(world, aheadMin, aheadMax, nParked, nPeds) {
   const p = world.player;
   const fx = Math.sin(p.heading);
@@ -77,7 +81,8 @@ function addStreetLife(world, aheadMin, aheadMax, nParked, nPeds) {
     const x = p.x + fx * d + rx * side;
     const z = p.z + fz * d + rz * side;
     const heading = rng.chance(0.5) ? p.heading : p.heading + Math.PI;
-    world._newCar(types[rng.int(0, types.length - 1)], x, z, heading, 'parked');
+    const car = world._newCar(types[rng.int(0, types.length - 1)], x, z, heading, 'parked');
+    car.color = SHOT_COLORS[rng.int(0, SHOT_COLORS.length - 1)];
   }
   for (let i = 0; i < nPeds; i += 1) {
     const d = aheadMin + rng.next() * (aheadMax - aheadMin);
@@ -93,8 +98,8 @@ function addStreetLife(world, aheadMin, aheadMax, nParked, nPeds) {
 }
 
 // Moving traffic in the frame: cars placed after the step, heading the same
-// way as the player so they stay ahead of it while it coasts. They start
-// from rest and pull away, so they read as live traffic, not parked cars.
+// way as the player. They are frozen for the screenshot (photoFreeze), so
+// they hold the exact band they are placed in.
 function addTrafficAhead(world, aheadMin, aheadMax, n) {
   const p = world.player;
   const fx = Math.sin(p.heading);
@@ -109,6 +114,7 @@ function addTrafficAhead(world, aheadMin, aheadMax, n) {
     const x = p.x + fx * d + rx * side;
     const z = p.z + fz * d + rz * side;
     const car = world._newCar(types[rng.int(0, types.length - 1)], x, z, p.heading, 'traffic');
+    car.color = SHOT_COLORS[rng.int(0, SHOT_COLORS.length - 1)];
     car.speed = 6;
     car.targetSpeed = rng.range(9, 13);
   }
@@ -143,23 +149,42 @@ function putPlayerInCar(world, typeId, x, z, heading) {
 export function stageShot(name, world) {
   world.reset();
   if (name === 'chase') {
-    // A three-star chase at dusk: the player floors a Clipper down a
-    // downtown avenue toward a police roadblock, cruisers flanking and a
-    // helicopter overhead. The camera sits nearly behind the player so the
-    // roadblock and traffic ahead are centred in the frame. Dusk (17:30)
-    // gives the warm sunset light.
+    // A beachfront getaway chase at dusk (round 6): the player floors a
+    // Clipper south down Beachfront — the westernmost road — with Dario
+    // riding along on a job, three stars, a police roadblock ahead and a
+    // helicopter overhead. The ocean, sand and palms are on the left, the
+    // skyline on the right, and the pier (z = 40) lands ahead-left in
+    // frame, bridging the road to the water. The camera sits slightly
+    // east (camSide -0.25) so it looks a touch west, toward the ocean.
+    // This is the leaders' shot — a mission chase on the beach, not an
+    // inland avenue — and the HUD district readout says "Beachfront".
     world.clock = 17 * 60 + 30;
-    world.camSide = 0.25;
-    putPlayerInCar(world, 'clipper', -80, 40, Math.PI / 2);
+    world.camSide = -0.25;
+    putPlayerInCar(world, 'clipper', -200, -180, 0);
     world.player.wanted = 3;
     world.player.lastCrime = world.time;
-    // A mid-game rank, so the rank/RP readout shows a developed player.
+    // A mid-game rank and bankroll, so the readouts show a developed
+    // player (same staging philosophy as the respect value).
     world.player.respect = 420; // Runner
-    const ahead = world._newCar('cruiser', -80 + 22, 40, Math.PI / 2, 'police');
+    world.player.money = 12480;
+    // A job is running at the same time as the chase: Dario is riding
+    // along to The Docks (south, straight ahead down Beachfront), so the
+    // cover carries a mission, a stage and a speaking character — and the
+    // gold mission beacon at the Docks is visible ahead.
+    world.player.passenger = 'Dario Voss';
+    world.mission.active = {
+      def: MISSIONS[0], objIdx: 2, data: {}, closeTime: 0, violation: 0,
+    };
+    world.mission.next = 0;
+    // The subtitle is timed from world.time: the 7 s autopilot drive plus
+    // the ~1.8 s screenshot wait already eat ~8.8 s, so a 12 s line keeps
+    // Dario's line on screen at screenshot time.
+    world.talk('Dario Voss: "Keep it smooth. The Docks, and no heroes."', 12);
+    const ahead = world._newCar('cruiser', -200, -180 + 22, 0, 'police');
     ahead.speed = 22;
     ahead.targetSpeed = 22;
     for (let i = 0; i < 2; i += 1) {
-      const cop = world._newCar('cruiser', -80 - 12 - i * 8, 40 + (i === 0 ? 3 : -3), Math.PI / 2, 'police');
+      const cop = world._newCar('cruiser', -200 + (i === 0 ? 3 : -3), -180 - 12 - i * 8, 0, 'police');
       cop.speed = 28;
       cop.targetSpeed = 28;
     }
@@ -170,24 +195,35 @@ export function stageShot(name, world) {
     // The pursuit happens behind the camera, so stage the visible half of
     // it ahead of the player: a cruiser roadblock with flashing light bars,
     // cruisers flanking it on both road edges, live traffic to weave
-    // through, parked cars and pedestrians filling the avenue. The band is
-    // LONG (36-80 m) this round, not one tight clump: the browser coasts
-    // ~24-30 m during the screenshot wait, so the cars land 6-56 m ahead —
-    // spread along the whole visible avenue instead of bunched at one
-    // intersection.
-    addCruiserAhead(world, 40, -2.5);
-    addCruiserAhead(world, 48, 2.5);
-    addCruiserAhead(world, 56, -3.2);
-    addCruiserAhead(world, 62, 3.2);
-    addTrafficAhead(world, 36, 80, 5);
-    addStreetLife(world, 36, 80, 5, 10);
-    // The helicopter lerps toward the player and would end up behind the
-    // camera, so it is staged far ahead and low: after the lerp it sits
-    // ~35 m ahead at y 12, inside the camera cone instead of above it —
-    // closer and lower than round 4, so the 3D body reads bigger.
-    world.heli.x = world.player.x + 120;
-    world.heli.z = world.player.z - 8;
+    // through, parked cars and pedestrians filling the avenue — including
+    // beachgoers on the sand-side verge. The world is frozen for the
+    // screenshot (photoFreeze below), so the bands are the exact distances
+    // at shutter time: two flanking cruisers at 12 m frame the player's
+    // lane in the mid-frame, the roadblock sits 20-44 m, traffic 14-50 m,
+    // street life 8-45 m — a deep, busy beachfront, not one cluster at a
+    // single intersection.
+    addCruiserAhead(world, 12, -3.2);
+    addCruiserAhead(world, 12, 3.2);
+    addCruiserAhead(world, 20, -2.5);
+    addCruiserAhead(world, 28, 2.5);
+    addCruiserAhead(world, 36, -3.2);
+    addCruiserAhead(world, 44, 3.2);
+    addTrafficAhead(world, 14, 50, 5);
+    addStreetLife(world, 8, 45, 5, 10);
+    // The helicopter is frozen for the screenshot too, so it is staged at
+    // its final distance: +50 m ahead and low (y 12), a BIG 3D body with
+    // its searchlight beam on the player, the way the leaders' helis read.
+    // (Before the freeze it was staged at +160 m to allow for the lerp
+    // and the coast; that made its distance a frame-rate lottery.)
+    world.heli.x = world.player.x - 10;
+    world.heli.z = world.player.z + 50;
     world.heli.y = 12;
+    // Freeze the simulation for the screenshot: the browser's coast during
+    // the ~1.8 s wait varies by tens of metres with the frame rate, and
+    // on one run the player coasted ~74 m and drove straight through the
+    // roadblock band. The frame is still a real render of the game after
+    // 7 s of real play — the freeze is photo mode, not a different game.
+    world.photoFreeze = true;
     return { screen: 'play' };
   }
   if (name === 'mission') {
@@ -207,8 +243,9 @@ export function stageShot(name, world) {
     // keeps Dario's line on screen at screenshot time.
     world.talk('Dario Voss: "Keep it smooth. The Docks, and no heroes."', 12);
     stepWorld(world, drivePilot(world), 5);
-    addTrafficAhead(world, 36, 50, 4);
-    addStreetLife(world, 36, 50, 4, 8);
+    addTrafficAhead(world, 14, 45, 4);
+    addStreetLife(world, 10, 40, 4, 8);
+    world.photoFreeze = true;
     return { screen: 'play' };
   }
   if (name === 'night') {
@@ -223,6 +260,7 @@ export function stageShot(name, world) {
     stepWorld(world, walkPilot(world), 6);
     addStreetLife(world, 10, 35, 2, 10);
     addTrafficAhead(world, 15, 40, 2);
+    world.photoFreeze = true;
     return { screen: 'play' };
   }
   if (name === 'map') {
@@ -237,6 +275,7 @@ export function stageShot(name, world) {
     stepWorld(world, drivePilot(world), 5);
     addTrafficAhead(world, 36, 50, 3);
     addStreetLife(world, 36, 50, 4, 8);
+    world.photoFreeze = true;
     return { screen: 'map' };
   }
   // Default: the title scene, a few seconds into the attract drive.

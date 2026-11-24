@@ -20,14 +20,17 @@ export function buildStaticMesh(city) {
   m.ground(-420, -H - 20, -280, H + 20, 0.14, PALETTE.water);
   m.ground(-280, -H - 20, -220, H + 20, 0.06, PALETTE.sand);
 
-  // Roads: asphalt strips both ways, with dashed centre lines.
+  // Roads: asphalt strips both ways, with solid double-yellow centre
+  // lines (the leaders' avenues all carry them; the old pale dashes
+  // read as nothing at dusk). The two directions sit at slightly
+  // different heights so they do not z-fight where they cross.
   for (const c of ROAD_CENTERS) {
     m.ground(c - 5, -H, c + 5, H, 0.02, PALETTE.asphalt);
     m.ground(-H, c - 5, H, c + 5, 0.02, PALETTE.asphalt);
-    for (let d = -H + 8; d < H - 8; d += 14) {
-      m.ground(c - 0.18, d, c + 0.18, d + 5, 0.03, PALETTE.asphaltLine);
-      m.ground(d, c - 0.18, d + 5, c + 0.18, 0.03, PALETTE.asphaltLine);
-    }
+    m.ground(c - 0.55, -H, c - 0.2, H, 0.03, PALETTE.roadYellow);
+    m.ground(c + 0.2, -H, c + 0.55, H, 0.03, PALETTE.roadYellow);
+    m.ground(-H, c - 0.55, H, c - 0.2, 0.035, PALETTE.roadYellow);
+    m.ground(-H, c + 0.2, H, c + 0.55, 0.035, PALETTE.roadYellow);
   }
 
   // Blocks: sidewalks, then the block's own ground by kind.

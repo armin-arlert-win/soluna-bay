@@ -93,6 +93,7 @@ export const WANTED_MAX = 5;
 export const PALETTE = {
   asphalt: 0x2e3138,
   asphaltLine: 0xd8d2a8,
+  roadYellow: 0xd8b52e,
   sidewalk: 0x9a938a,
   grass: 0x4d8a3f,
   sand: 0xdcc78f,

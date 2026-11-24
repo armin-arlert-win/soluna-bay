@@ -184,9 +184,18 @@ export function skyFor(hour) {
   const dusk = (hour >= 17 && hour < 19) || (hour >= 5 && hour < 7);
   const night = !day;
   if (dusk) {
+    // Evening dusk (17-19): the sun sits northwest, behind the chase
+    // camera — so the cars' rears and the buildings' camera-facing sides
+    // are lit warm instead of falling to ambient shadow (round-6
+    // diagnosis: the old southeast sun left everything the camera sees
+    // dark — a white police cruiser rendered nearly black). Morning dusk
+    // (5-7) keeps the eastern sun. The sky stays the same warm orange.
+    const evening = hour >= 17;
     return {
-      clear: [0.98, 0.55, 0.32], fog: [0.95, 0.55, 0.35], sunDir: [0.6, 0.25, 0.4],
-      sunCol: [1.0, 0.55, 0.3], amb: [0.45, 0.4, 0.42], fogNear: 55, fogFar: 240, night: false,
+      clear: [0.98, 0.55, 0.32], fog: [0.95, 0.55, 0.35],
+      sunDir: evening ? [-0.45, 0.35, -0.55] : [0.6, 0.25, 0.4],
+      sunCol: [1.0, 0.55, 0.3], amb: evening ? [0.52, 0.47, 0.47] : [0.45, 0.4, 0.42],
+      fogNear: 55, fogFar: 240, night: false,
     };
   }
   if (night) {

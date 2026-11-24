@@ -71,9 +71,12 @@ function drawCar(m, glow, car, time, night) {
     const b = Math.min(255, Math.round((c & 255) * f));
     return (r << 16) | (g << 8) | b;
   };
-  // Body and cabin.
+  // Body and cabin. The cabin's sides are dark glass (windows) but its
+  // TOP is the roof, so it takes the body colour — a cabin that is dark
+  // all over reads as a black box sitting on the car (round-6 diagnosis:
+  // the player's red car looked like a black car on a red wedge).
   m.rbox(car.x, 0.55, car.z, L, 0.7, W, rot, car.color, shade(car.color, 1.18));
-  m.rbox(car.x - fx * 0.3, 1.18, car.z - fz * 0.3, L * 0.48, 0.55, W * 0.85, rot, 0x222831, 0x2e3a46);
+  m.rbox(car.x - fx * 0.3, 1.18, car.z - fz * 0.3, L * 0.48, 0.55, W * 0.85, rot, 0x222831, shade(car.color, 1.1));
   // Wheels.
   for (const s1 of [-1, 1]) {
     for (const s2 of [-1, 1]) {
@@ -124,7 +127,17 @@ export class Game {
     if (shot) {
       const staged = stageShot(shot, this.world);
       this.screen = staged.screen;
-      this.camYaw = this.world.player.heading;
+      // Snap the camera to its final angle (heading + camSide) now: the
+      // chase camera lerps 3% per tick toward it, and the tick count
+      // during the screenshot wait depends on the frame rate, so without
+      // the snap the cover's camera angle is a frame-rate lottery. With
+      // the snap (and the photo freeze) the cover is byte-identical
+      // between runs.
+      // Mark the page as a staged shot: the HUD's real-time animations
+      // (the pulsing wanted stars) are held so the screenshot is
+      // byte-identical between runs — a live game pulses, a photo does not.
+      document.body.classList.add('shot');
+      this.camYaw = this.world.player.heading + (this.world.camSide || 0);
       this.hud.hideTitle(); // the title overlay is visible by default in the HTML
       if (staged.screen === 'map') this.hud.setOverlay('map-overlay', true);
     } else {
@@ -225,7 +238,7 @@ export class Game {
         this.screen = 'play';
         this.hud.setOverlay('map-overlay', false);
       }
-      world.step(input, 0, this.camYaw);
+      if (!world.photoFreeze) world.step(input, 0, this.camYaw);
       this._followCamera();
       this._drainFx();
       return;
@@ -308,7 +321,14 @@ export class Game {
         }
       }
     }
-    world.step(input, actions, this.camYaw);
+    // Photo freeze (set by shots.js for the ?shot= scenes): the world does
+    // not step during the screenshot wait, so the frame is exactly the
+    // staged one. The browser's coast during that wait varies by tens of
+    // metres with the frame rate (on one probe run the player coasted
+    // ~74 m and drove straight through the roadblock band), which made
+    // the cover a lottery. Rendering, the camera and the HUD still update;
+    // only the simulation is held.
+    if (!world.photoFreeze) world.step(input, actions, this.camYaw);
     this._followCamera();
     this._drainFx();
     if (this.flashT > 0) this.flashT -= STEP;
@@ -320,16 +340,25 @@ export class Game {
     if (world.time > this.camFreeUntil) {
       this.camYaw += angDiff(p.heading + (world.camSide || 0), this.camYaw) * 0.03;
     }
-    const dist = p.onFoot ? 9 : 15;
-    const height = p.onFoot ? 4 : 6.5;
-    const tx = p.x;
-    const tz = p.z;
+    // Low cinematic chase camera: close behind the car and low, so the
+    // player's ride fills the lower frame and the road rushes toward the
+    // viewer — the leaders' covers are all shot this way, and the old
+    // 15 m / 6.5 m setup read as a surveillance camera (round-6 diagnosis).
+    const dist = p.onFoot ? 9 : 8;
+    const height = p.onFoot ? 4 : 3.6;
+    // Look AHEAD of the car, not at it: the chase camera frames the
+    // player's ride in the lower third with the road ahead filling the
+    // frame — the leaders' covers are all shot this way. Looking AT the
+    // player put the car at frame centre, cropped by the bottom edge.
+    const lookAhead = p.onFoot ? 0 : 8;
+    const tx = p.x + Math.sin(this.camYaw) * lookAhead;
+    const tz = p.z + Math.cos(this.camYaw) * lookAhead;
     this.camera = {
       target: [tx, p.onFoot ? 1.6 : 2.0, tz],
       eye: [
-        tx - Math.sin(this.camYaw) * dist,
+        p.x - Math.sin(this.camYaw) * dist,
         height + (p.onFoot ? 0.6 : 0.4),
-        tz - Math.cos(this.camYaw) * dist,
+        p.z - Math.cos(this.camYaw) * dist,
       ],
     };
   }

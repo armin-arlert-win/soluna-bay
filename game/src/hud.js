@@ -144,9 +144,35 @@ export class Hud {
     this._updateCrew(world);
     // Passenger.
     this._set('passenger', p.passenger ? `Passenger: ${p.passenger}` : '');
-    // Subtitle, banner, messages.
+    // Subtitle, banner, messages. A spoken line ("Name: ...") gets a
+    // portrait tile — the speaker's initial in their crew colour — the
+    // low-poly equivalent of the leaders' character portraits next to
+    // their dialogue. Plain lines render as before.
     const sub = el('subtitle');
-    if (sub) sub.textContent = world.subtitle || '';
+    if (sub) {
+      const text = world.subtitle || '';
+      if (this._lastText.subtitle !== text) {
+        this._lastText.subtitle = text;
+        if (!text) {
+          sub.textContent = '';
+        } else {
+          const m = text.match(/^([^:]+):\s*(.*)$/);
+          const speaker = m ? CREW.find((c) => c.name === m[1]) : null;
+          if (speaker && m) {
+            sub.innerHTML = '';
+            const tile = document.createElement('span');
+            tile.className = 'portrait';
+            tile.style.background = speaker.color;
+            tile.textContent = speaker.name.charAt(0);
+            const line = document.createElement('span');
+            line.textContent = m[2];
+            sub.append(tile, line);
+          } else {
+            sub.textContent = text;
+          }
+        }
+      }
+    }
     const ban = el('banner');
     if (ban) ban.textContent = world.banner || '';
     const msgs = el('messages');
