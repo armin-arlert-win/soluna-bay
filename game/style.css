@@ -22,6 +22,29 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0e14; fon
 #mission-box { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); text-align: center; background: rgba(0,0,0,.45); border-radius: 4px; padding: 6px 16px; max-width: 520px; }
 #mission-title { font-size: 15px; font-weight: 700; color: #ffd23a; }
 #mission-objective { font-size: 13px; color: #fff; }
+#mission-stage { font-size: 11px; letter-spacing: 1px; color: #9ab0c8; margin-top: 2px; }
+#mission-bar { height: 5px; background: rgba(255,255,255,.15); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+#mission-bar-fill { height: 100%; background: #ffd23a; width: 0%; }
+
+/* Police dispatch panel: the SBPD units on the player, live. */
+#dispatch { position: absolute; right: 14px; bottom: 210px; width: 236px; background: rgba(0,0,0,.55); border: 1px solid rgba(127,212,255,.4); border-radius: 4px; padding: 7px 10px; font-size: 12px; }
+#dispatch h3 { margin: 0 0 4px; font-size: 11px; letter-spacing: 2px; color: #7fd4ff; }
+.drow { display: flex; justify-content: space-between; gap: 6px; color: #e8e8e8; white-space: nowrap; }
+.drow .role { color: #ffd23a; }
+.drow .dist { color: #9ab0c8; }
+#dispatch .clear { color: #7dff9b; }
+
+/* Crew roster: who is in the player's corner, and what they do. */
+#crew { position: absolute; left: 14px; top: 148px; width: 228px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.18); border-radius: 4px; padding: 7px 10px; font-size: 12px; }
+#crew h3 { margin: 0 0 4px; font-size: 11px; letter-spacing: 2px; color: #ffd23a; }
+.crow { display: flex; gap: 6px; align-items: baseline; color: #cfcfcf; white-space: nowrap; }
+.crow .cdot { width: 8px; height: 8px; border-radius: 50%; flex: none; transform: translateY(-1px); }
+.crow b { color: #fff; font-weight: 600; }
+.crow i { color: #9ab0c8; font-style: normal; margin-left: auto; }
+.crow.active { color: #ffd23a; }
+.crow.active b { color: #ffd23a; }
+
+#rp { font-size: 13px; color: #e8b23a; }
 
 #minimap { position: absolute; right: 14px; bottom: 14px; width: 180px; height: 180px; border: 2px solid rgba(255,255,255,.35); border-radius: 50%; background: #1d2b1a; box-shadow: 0 0 12px rgba(0,0,0,.6); }
 #weapons { position: absolute; left: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 4px; }
