@@ -1,6 +1,6 @@
 // SOLUNA BAY — the HUD: bars, stars, tracker, weapons, and the minimap.
 // All DOM, no game logic; main.js tells it which screen is showing.
-import { WEAPONS, UPGRADES, PROPERTIES, GARAGE, rankFor, districtAt } from './config.js';
+import { WEAPONS, UPGRADES, PROPERTIES, GARAGE, CREW, RANKS, ROAD_CENTERS, BLOCK, rankFor, districtAt } from './config.js';
 import { MISSIONS, RACES } from './missions.js';
 
 function el(id) {
@@ -20,6 +20,7 @@ export class Hud {
   constructor() {
     this._lastText = {};
     this._weaponSlots = [];
+    this._crewRows = [];
     const box = el('weapons');
     if (box) {
       for (let i = 0; i < WEAPONS.length; i += 1) {
@@ -29,6 +30,33 @@ export class Hud {
         this._weaponSlots.push(d);
       }
     }
+    // Crew roster: built once from CREW; update() only toggles the
+    // highlight for the passenger and the current job's giver.
+    const crew = el('crew');
+    if (crew) {
+      const h = document.createElement('h3');
+      h.textContent = 'CREW';
+      crew.appendChild(h);
+      for (const c of CREW) {
+        const d = document.createElement('div');
+        d.className = 'crow';
+        const dot = document.createElement('span');
+        dot.className = 'cdot';
+        dot.style.background = c.color;
+        const nm = document.createElement('b');
+        nm.textContent = c.name;
+        const rl = document.createElement('span');
+        rl.textContent = ` · ${c.role}`;
+        const sk = document.createElement('i');
+        sk.textContent = c.skill;
+        d.append(dot, nm, rl, sk);
+        crew.appendChild(d);
+        this._crewRows.push({ id: c.id, name: c.name, el: d });
+      }
+    }
+    const ch = el('car-hp');
+    this._carLabel = ch ? ch.querySelector('span') : null;
+    this._missionBar = el('mission-bar');
   }
   _set(id, text) {
     if (this._lastText[id] === text) return;
@@ -46,20 +74,45 @@ export class Hud {
     this._set('clock', fmtClock(world.clock));
     this._set('district', districtAt(p.x, p.z));
     this._set('rank', rankFor(p.respect));
+    // Respect progress: how far to the next rank.
+    let nextRank = null;
+    for (const r of RANKS) {
+      if (r.at > p.respect) { nextRank = r; break; }
+    }
+    this._set('rp', nextRank ? `RP ${p.respect} · next ${nextRank.name} at ${nextRank.at}` : `RP ${p.respect} · MAX RANK`);
     const stars = '★'.repeat(p.wanted) + '☆'.repeat(5 - p.wanted);
     this._set('wanted', stars);
     const wEl = el('wanted');
     if (wEl) wEl.classList.toggle('hot', p.wanted >= 3);
-    // Mission tracker.
+    // Mission tracker: staged progress while a job runs, and a pursuit
+    // readout while the heat is on with no job — so the chase cover shows
+    // the pursuit, never the generic "Next job" banner.
     const m = world.mission.active;
+    const barFill = el('mission-bar-fill');
     if (m) {
       this._set('mission-title', `JOB — ${m.def.name}`);
       const obj = m.def.objectives[m.objIdx];
       this._set('mission-objective', obj ? obj.label : '');
+      const total = m.def.objectives.length;
+      const stage = Math.min(m.objIdx + 1, total);
+      this._set('mission-stage', `STAGE ${stage}/${total} · $${m.def.reward.money} + ${m.def.reward.respect} RP`);
+      if (barFill) barFill.style.width = `${Math.round((stage / total) * 100)}%`;
+      if (this._missionBar) this._missionBar.style.display = 'block';
+    } else if (p.wanted > 0) {
+      const units = world.cars.filter((c) => c.kind === 'police').length + (world.heli.active ? 1 : 0);
+      this._set('mission-title', 'PURSUIT — Lose the SBPD');
+      this._set('mission-objective', `${stars} · ${units} unit${units === 1 ? '' : 's'} closing in — break line of sight`);
+      this._set('mission-stage', world.heli.active ? 'AIR-1 overhead · roadblocks ahead' : 'Roadblocks ahead');
+      if (barFill) barFill.style.width = '0%';
+      if (this._missionBar) this._missionBar.style.display = 'none';
     } else {
       const next = MISSIONS[world.mission.next];
       this._set('mission-title', next ? `Next job: ${next.name}` : 'All jobs done');
       this._set('mission-objective', next ? 'Press J to start' : 'The Bay is yours');
+      const giver = next ? CREW.find((c) => c.id === next.giver) : null;
+      this._set('mission-stage', next ? `Giver: ${giver ? giver.name : next.giver} · $${next.reward.money} + ${next.reward.respect} RP` : '');
+      if (barFill) barFill.style.width = '0%';
+      if (this._missionBar) this._missionBar.style.display = 'none';
     }
     // Weapons.
     for (let i = 0; i < WEAPONS.length; i += 1) {
@@ -71,7 +124,7 @@ export class Hud {
       d.textContent = `${i + 1} ${w.name} ${mag}/${res}`;
       d.classList.toggle('active', p.weapon === i);
     }
-    // Speed and car condition.
+    // Speed and car condition: name the ride, not just its bar.
     const spd = p.onFoot ? p.speed * 3.6 : (p.car ? Math.abs(p.car.speed) * 3.6 : 0);
     this._set('speed', p.onFoot ? '' : `${Math.round(spd)} km/h`);
     const ch = el('car-hp');
@@ -79,8 +132,16 @@ export class Hud {
       ch.style.display = p.onFoot ? 'none' : 'block';
       const f = el('car-hp-fill');
       if (f && p.car) f.style.width = `${Math.max(0, p.car.hp)}%`;
+      if (this._carLabel) {
+        this._carLabel.textContent = p.car
+          ? `${p.car.type.name.toUpperCase()} — ${Math.max(0, Math.round(p.car.hp))}%`
+          : 'CAR';
+      }
     }
     this._set('radio', world.audio ? world.audio.stationName() : '');
+    // Police dispatch and crew roster, live.
+    this._updateDispatch(world);
+    this._updateCrew(world);
     // Passenger.
     this._set('passenger', p.passenger ? `Passenger: ${p.passenger}` : '');
     // Subtitle, banner, messages.
@@ -106,6 +167,59 @@ export class Hud {
     if (mm) this.drawMap(mm, world, 1);
     const big = el('bigmap');
     if (big && screen === 'map') this.drawMap(big, world, 3.2);
+  }
+  // SBPD dispatch: every police unit on the scene, nearest first, with a
+  // role read off its position relative to the player — a parked cruiser
+  // ahead is a roadblock, one closing from behind is in pursuit, one
+  // alongside is flanking. The helicopter flies as AIR-1. When the heat
+  // is off the panel says so, so it always reads as a live police radio.
+  _updateDispatch(world) {
+    const box = el('dispatch');
+    if (!box) return;
+    const p = world.player;
+    const fx = Math.sin(p.heading);
+    const fz = Math.cos(p.heading);
+    const rx = Math.cos(p.heading);
+    const rz = -Math.sin(p.heading);
+    const cops = world.cars.filter((c) => c.kind === 'police');
+    cops.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z));
+    const total = cops.length + (world.heli.active ? 1 : 0);
+    let html = `<h3>SBPD DISPATCH · ${total} ON SCENE</h3>`;
+    if (total === 0) {
+      html += '<div class="clear">All units clear — no pursuit</div>';
+    } else {
+      if (world.heli.active) {
+        const d = Math.hypot(world.heli.x - p.x, world.heli.z - p.z);
+        html += `<div class="drow"><span>AIR-1</span><span class="role">SPOTLIGHT</span><span class="dist">${Math.round(d)}m</span></div>`;
+      }
+      cops.slice(0, 4).forEach((car, i) => {
+        const dx = car.x - p.x;
+        const dz = car.z - p.z;
+        const fwd = dx * fx + dz * fz;
+        const side = dx * rx + dz * rz;
+        const d = Math.hypot(dx, dz);
+        let role;
+        if (car.parked) role = 'ROADBLOCK';
+        else if (fwd > 8) role = 'INTERCEPT';
+        else if (fwd < -8) role = 'PURSUIT';
+        else role = side >= 0 ? 'FLANK RIGHT' : 'FLANK LEFT';
+        html += `<div class="drow"><span>UNIT ${i + 1}</span><span class="role">${role}</span><span class="dist">${Math.round(d)}m</span></div>`;
+      });
+    }
+    if (this._lastText.dispatch !== html) {
+      this._lastText.dispatch = html;
+      box.innerHTML = html;
+    }
+  }
+  // Crew roster highlight: the passenger riding along, and the giver of
+  // the job currently running.
+  _updateCrew(world) {
+    if (this._crewRows.length === 0) return;
+    const giver = world.mission.active ? world.mission.active.def.giver : null;
+    for (const row of this._crewRows) {
+      const on = world.player.passenger === row.name || giver === row.id;
+      row.el.classList.toggle('active', !!on);
+    }
   }
   _updatePrompt(world, screen) {
     const p = world.player;
@@ -153,6 +267,19 @@ export class Hud {
     ctx.fillRect(0, 0, px(-280), S);
     ctx.fillStyle = '#dcc78f';
     ctx.fillRect(px(-280), 0, px(-220) - px(-280), S);
+    // City blocks: filled squares between the roads, so the map reads as
+    // a street map with blocks — not a dark grid. Block centres sit
+    // halfway between adjacent road centres (roads every 40 m, blocks
+    // 30 m wide).
+    ctx.fillStyle = '#2b3a26';
+    const bs = (BLOCK / (half * 2)) * S;
+    for (let i = 0; i < ROAD_CENTERS.length - 1; i += 1) {
+      for (let j = 0; j < ROAD_CENTERS.length - 1; j += 1) {
+        const cx = ROAD_CENTERS[i] + 20;
+        const cz = ROAD_CENTERS[j] + 20;
+        ctx.fillRect(px(cx) - bs / 2, pz(cz) - bs / 2, bs, bs);
+      }
+    }
     // Roads.
     ctx.strokeStyle = '#6a7076';
     ctx.lineWidth = Math.max(2, 4 * scale);
@@ -225,6 +352,11 @@ export class Hud {
     ctx.closePath();
     ctx.fill();
     ctx.restore();
+    // Compass: map north is up (-z).
+    ctx.fillStyle = '#e8e8e8';
+    ctx.font = `bold ${Math.max(11, Math.round(S * 0.07))}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('N', S / 2, Math.max(12, S * 0.08));
   }
   showTitle(slots) {
     const t = el('title');

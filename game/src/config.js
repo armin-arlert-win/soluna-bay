@@ -25,11 +25,11 @@ export function districtAt(x, z) {
 }
 
 export const CREW = [
-  { id: 'dario', name: 'Dario Voss', role: 'Fixer', color: '#e8b23a' },
-  { id: 'nia', name: 'Nia Calder', role: 'Mechanic', color: '#7fd4ff' },
-  { id: 'rex', name: 'Rex Tallow', role: 'Muscle', color: '#ff7a5c' },
-  { id: 'ivy', name: 'Ivy Santoro', role: 'Hacker', color: '#b78cff' },
-  { id: 'milo', name: 'Milo Ferran', role: 'Racer', color: '#7dff9b' },
+  { id: 'dario', name: 'Dario Voss', role: 'Fixer', color: '#e8b23a', skill: 'Jobs & payouts' },
+  { id: 'nia', name: 'Nia Calder', role: 'Mechanic', color: '#7fd4ff', skill: 'Tuned rides' },
+  { id: 'rex', name: 'Rex Tallow', role: 'Muscle', color: '#ff7a5c', skill: 'Backup' },
+  { id: 'ivy', name: 'Ivy Santoro', role: 'Hacker', color: '#b78cff', skill: 'Cams & relays' },
+  { id: 'milo', name: 'Milo Ferran', role: 'Racer', color: '#7dff9b', skill: 'Getaway lines' },
 ];
 
 export const WEAPONS = [

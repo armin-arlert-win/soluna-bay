@@ -153,6 +153,8 @@ export function stageShot(name, world) {
     putPlayerInCar(world, 'clipper', -80, 40, Math.PI / 2);
     world.player.wanted = 3;
     world.player.lastCrime = world.time;
+    // A mid-game rank, so the rank/RP readout shows a developed player.
+    world.player.respect = 420; // Runner
     const ahead = world._newCar('cruiser', -80 + 22, 40, Math.PI / 2, 'police');
     ahead.speed = 22;
     ahead.targetSpeed = 22;
@@ -167,20 +169,25 @@ export function stageShot(name, world) {
     stepWorld(world, drivePilot(world), 7);
     // The pursuit happens behind the camera, so stage the visible half of
     // it ahead of the player: a cruiser roadblock with flashing light bars,
-    // live traffic to weave through, parked cars and pedestrians filling
-    // the avenue. The band is tight (36-50 m): the browser coasts ~24-30 m
-    // during the screenshot wait, so the cars land 6-26 m ahead of the
-    // player — large and close in the frame, not a distant cluster.
+    // cruisers flanking it on both road edges, live traffic to weave
+    // through, parked cars and pedestrians filling the avenue. The band is
+    // LONG (36-80 m) this round, not one tight clump: the browser coasts
+    // ~24-30 m during the screenshot wait, so the cars land 6-56 m ahead —
+    // spread along the whole visible avenue instead of bunched at one
+    // intersection.
     addCruiserAhead(world, 40, -2.5);
     addCruiserAhead(world, 48, 2.5);
-    addTrafficAhead(world, 36, 50, 3);
-    addStreetLife(world, 36, 50, 4, 8);
+    addCruiserAhead(world, 56, -3.2);
+    addCruiserAhead(world, 62, 3.2);
+    addTrafficAhead(world, 36, 80, 5);
+    addStreetLife(world, 36, 80, 5, 10);
     // The helicopter lerps toward the player and would end up behind the
     // camera, so it is staged far ahead and low: after the lerp it sits
-    // ~40 m ahead at y 15, inside the camera cone instead of above it.
-    world.heli.x = world.player.x + 150;
+    // ~35 m ahead at y 12, inside the camera cone instead of above it —
+    // closer and lower than round 4, so the 3D body reads bigger.
+    world.heli.x = world.player.x + 120;
     world.heli.z = world.player.z - 8;
-    world.heli.y = 15;
+    world.heli.y = 12;
     return { screen: 'play' };
   }
   if (name === 'mission') {
@@ -189,6 +196,7 @@ export function stageShot(name, world) {
     // reads as a living city, not an empty road.
     putPlayerInCar(world, 'clipper', 40, 120, Math.PI);
     world.player.passenger = 'Dario Voss';
+    world.player.respect = 180; // Hustler — the rank/RP readout shows progress
     world.mission.active = {
       def: MISSIONS[0], objIdx: 2, data: {}, closeTime: 0, violation: 0,
     };
@@ -199,7 +207,7 @@ export function stageShot(name, world) {
     // keeps Dario's line on screen at screenshot time.
     world.talk('Dario Voss: "Keep it smooth. The Docks, and no heroes."', 12);
     stepWorld(world, drivePilot(world), 5);
-    addTrafficAhead(world, 36, 50, 3);
+    addTrafficAhead(world, 36, 50, 4);
     addStreetLife(world, 36, 50, 4, 8);
     return { screen: 'play' };
   }
