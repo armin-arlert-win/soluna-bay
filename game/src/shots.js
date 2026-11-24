@@ -199,15 +199,15 @@ export function stageShot(name, world) {
     // beachgoers on the sand-side verge. The world is frozen for the
     // screenshot (photoFreeze below), so the bands are the exact distances
     // at shutter time: two flanking cruisers at 12 m frame the player's
-    // lane in the mid-frame, the roadblock sits 20-44 m, traffic 14-50 m,
+    // lane in the mid-frame, the roadblock sits 20-41 m, traffic 14-50 m,
     // street life 8-45 m — a deep, busy beachfront, not one cluster at a
     // single intersection.
     addCruiserAhead(world, 12, -3.2);
     addCruiserAhead(world, 12, 3.2);
     addCruiserAhead(world, 20, -2.5);
     addCruiserAhead(world, 28, 2.5);
-    addCruiserAhead(world, 36, -3.2);
-    addCruiserAhead(world, 44, 3.2);
+    addCruiserAhead(world, 34, -3.2);
+    addCruiserAhead(world, 41, 3.2);
     addTrafficAhead(world, 14, 50, 5);
     addStreetLife(world, 8, 45, 5, 10);
     // The helicopter is frozen for the screenshot too, so it is staged at
